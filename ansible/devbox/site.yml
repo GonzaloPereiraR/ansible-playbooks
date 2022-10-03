@@ -1,0 +1,18 @@
+---
+
+- name: Apply Common Configuration to All Hosts
+  hosts: all
+  become: yes
+  remote_user: ubuntu
+  roles:
+    - common
+    - aws
+    - docker
+    - k8s
+
+# without become so that this runs as the ubuntu user
+- name: Setup Git Repository and Clone Source
+  hosts: all
+  remote_user: ubuntu
+  roles:
+    - cerebro

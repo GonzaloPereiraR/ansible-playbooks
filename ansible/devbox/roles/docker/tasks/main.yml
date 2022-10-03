@@ -1,0 +1,92 @@
+---
+# Installation details acquired from
+# https://www.digitalocean.com/community/tutorials/how-to-use-ansible-to-install-and-set-up-docker-on-ubuntu-20-04
+
+- name: Create .docker directory
+  ansible.builtin.file:
+    path: /home/ubuntu/.docker/
+    state: directory
+    mode: '0755'
+
+- name: Install required system packages
+  apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+      - python3-pip
+      - virtualenv
+      - python3-setuptools
+    state: latest
+    update_cache: true
+
+- name: Add Docker GPG apt Key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    keyring: /usr/share/keyrings/docker-archive-keyring.gpg
+    state: present
+
+- name: Add Docker Repository for correct distribution - {{ ansible_distribution_release }}
+  apt_repository:
+    repo: deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Update apt and install docker-ce, docker-ce-cli, and containerd.io
+  apt:
+    pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: latest
+    update_cache: true
+
+- name: Install Python Docker Package - so Ansible can interact with Docker
+  pip:
+    name: docker
+
+- name: Verify Docker Installation
+  block:
+    - name: Run Docker Hello World and Save Results
+      docker_container:
+        detach: false
+        name: hello-world-test
+        image: hello-world
+      register: docker_container_hello_world_output
+    
+    - name: Show Hello World Docker Run Results
+      debug:
+        msg: "{{ docker_container_hello_world_output.container.Output }}"
+
+    - name: Remove Hello World Container
+      docker_container:
+        state: absent
+        name: hello-world-test
+
+- name: Add Ubuntu User to Docker Group
+  block:
+    - name: Append ubuntu to docker group
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: yes
+    - name: reset ssh connection to allow user changes to affect ansible user
+      meta: reset_connection
+
+- name: Log into Quay.io Okeradev Registry
+  docker_login:
+    registry: quay.io
+    state: present
+    username: "{{ lookup('amazon.aws.aws_secret', 'quay_okeradev_ro.username', nested=true) }}"
+    password: "{{ lookup('amazon.aws.aws_secret', 'quay_okeradev_ro.password', nested=true) }}"
+    config_path: "/home/ubuntu/.docker/config.json"
+  tags:
+    - docker_login
+
+- name: Ensure Docker Config File Read Permissions work for Ubuntu User
+  ansible.builtin.file:
+    path: "/home/ubuntu/.docker/config.json"
+    mode: '0755'
+  tags:
+    - docker_login
+  

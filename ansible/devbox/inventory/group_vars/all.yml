@@ -1,0 +1,22 @@
+---
+
+# Recommended you use the default id_rsa name until we fix the rest of our codebase to not hardcode it
+ssh:
+  private_key_name: id_rsa
+
+# Name of your aws credentials and config files located at ~/.aws/
+aws:
+  credentials_file_name: "credentials"
+  config_file_name: "config"
+
+# Once we are migrated to GitHub Enterprise, username will be the same as email but for now...
+github:
+  username: github_username
+  name: "GitHub Commit Name Annotation"
+  email: email_addrell_for_github_commits
+  keyfile_name: id_rsa
+
+# Don't confuse your gerrit username with your gerrit login. Username must be set manually within Gerrit!
+gerrit:
+  username: gerrit_username
+  keyfile_name: id_rsa

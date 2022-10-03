@@ -1,0 +1,131 @@
+---
+
+- name: Create .ssh directory
+  ansible.builtin.file:
+    path: /home/ubuntu/.ssh/
+    state: directory
+    mode: '0755'
+
+# TODO: use key package for staging instead of direct copy
+- name: Copy SSH Credentials to Host
+  copy:
+    src: "~/.ssh/{{ item.file_name }}"
+    dest: "/home/ubuntu/.ssh/{{ item.file_name }}"
+    mode: '{{ item.mode }}'
+    group: ubuntu
+    owner: ubuntu
+  loop:
+    - { file_name: "{{ ssh.private_key_name }}", mode: '0600' }
+
+# TODO: figure out how to do this with an ssh ansible package
+- name: Add No StrictHostKeyChecking to SSH Config
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.ssh/config
+    marker: "# {mark} NO HOST KEY"
+    create: yes
+    block: |
+      Host *
+        StrictHostKeyChecking no
+
+# TODO: figure out how to do this with an ssh ansible package
+- name: Add GitHub Reference to SSH Config
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.ssh/config
+    marker: "# {mark} GITHUB REF"
+    block: |
+      Host github.com
+        User {{ github.username }}
+        IdentityFile ~/.ssh/{{ github.keyfile_name }}
+
+# TODO: figure out how to do this with an ssh ansible package
+- name: Add Gerrit Reference to SSH Config
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.ssh/config
+    marker: "# {mark} GERRIT REF"
+    block: |
+      Host gerrit.okera.dev
+        User {{ gerrit.username }}
+        IdentityFile ~/.ssh/{{ gerrit.keyfile_name }}
+
+- name: Configure Git Global User Email and Name
+  block:
+    - name: Set Global Git User Email
+      git_config:
+        name: user.email
+        scope: global
+        value: "{{ github.email }}"
+    - name: Set Global Git Name
+      git_config:
+        name: user.name
+        scope: global
+        value: "{{ github.name }}"
+
+- name: Create work directory
+  ansible.builtin.file:
+    path: /home/ubuntu/work
+    state: directory
+
+# TODO: Add clause to only execute if origin not yet cloned
+- name: Clone from {{ github.username }} Cerebro Fork
+  ansible.builtin.git:
+    repo: git@github.com:{{ github.username }}/cerebro.git
+    dest: /home/ubuntu/work/cerebro/
+    update: yes
+
+- name: Add Cerebro Okera Remote
+  # Git module does not know how to add remotes (yet...)
+  # Using command and silencing corresponding ansible-lint rule 
+  # noqa command-instead-of-module
+  command:
+    cmd: git remote add cerebro git@github.com:/cerebro-data/cerebro.git --fetch
+    chdir: /home/ubuntu/work/cerebro/
+  register: add_result
+  changed_when: add_result.rc == 0
+  failed_when:
+    - add_result.rc != 0
+    - add_result.stderr | default('') is not search("remote .* already exists")
+
+- name: Add Cerebro Gerrit Remote
+  # Git module does not know how to add remotes (yet...)
+  # Using command and silencing corresponding ansible-lint rule 
+  # noqa command-instead-of-module
+  command:
+    cmd: git remote add gerrit ssh://{{ gerrit.username }}@gerrit.okera.dev:29418/cerebro --fetch
+    chdir: /home/ubuntu/work/cerebro/
+  register: add_result
+  changed_when: add_result.rc == 0
+  failed_when:
+    - add_result.rc != 0
+    - add_result.stderr | default('') is not search("remote .* already exists")
+
+# This will remain not idempotent until the initial fork clone is made to work even if rebased
+- name: Rebase to Cerebro/master
+  command:
+    cmd: git rebase cerebro/master
+    chdir: /home/ubuntu/work/cerebro/
+  register: add_result
+  changed_when: add_result.rc == 0
+  failed_when:
+    - add_result.rc != 0
+    - add_result.stderr | default('') is not search("Current branch master is up to date.")
+
+- name: Get Commit-msg from Gerrit
+  # There is no module I can find that supports this operation
+  # TODO: Move this file into source control somewhere
+  command: scp -p -P 29418 {{ gerrit.username }}@gerrit.okera.dev:hooks/commit-msg .git/hooks/commit-msg
+  args:
+    chdir: /home/ubuntu/work/cerebro/
+    creates: .git/hooks/commit-msg
+
+- name: Add .gitmessage
+  command: git config --local commit.template ".gitmessage"
+  args:
+    chdir: /home/ubuntu/work/cerebro/
+
+- name: Source File Update
+  ansible.builtin.blockinfile:
+    path: /home/ubuntu/.bashrc
+    marker: "# {mark} CEREBRO COMMON PROFILE"
+    block: |
+      export OKERA_HOME=/home/ubuntu/work/cerebro
+      source $OKERA_HOME/dev/bin/common_profile.sh

@@ -1,0 +1,23 @@
+---
+
+- name: Install AWS CLI with PIP3
+  ansible.builtin.pip:
+    name: awscli
+
+- name: Create /home/ubuntu/.aws directory
+  ansible.builtin.file:
+    path: /home/ubuntu/.aws/
+    state: directory
+    mode: '0755'
+
+# TODO: determine how to use key package for staging instead of direct copy
+- name: Copy AWS Credentials and Config to Host
+  copy:
+    src: "~/.aws/{{ item.file_name }}"
+    dest: "/home/ubuntu/.aws/{{ item.file_name }}"
+    mode: '{{ item.mode }}'
+    group: ubuntu
+    owner: ubuntu
+  loop:
+    - { file_name: "{{ aws.credentials_file_name }}", mode: '0600' }
+    - { file_name: "{{ aws.config_file_name }}", mode: '0600' }

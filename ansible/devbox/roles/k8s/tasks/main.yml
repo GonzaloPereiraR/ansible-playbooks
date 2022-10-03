@@ -1,0 +1,63 @@
+---
+# following instructions for K8s installation here: https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+- name: Install Kubernetes Dependencies
+  apt:
+    pkg:
+      - ca-certificates
+      - curl
+    state: latest
+    update_cache: true    
+
+- name: Add Kubernetes GPG apt Key
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    keyring: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+    state: present
+
+- name: Add Kubernetes Repository
+  apt_repository:
+    repo: deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+
+- name: Update Apt and Install kubectl
+  ansible.builtin.apt:
+    pkg:
+      - kubectl
+    state: latest
+    update_cache: true
+
+# following instructions for Helm installation here: https://helm.sh/docs/intro/install/
+- name: Download and Install Helm
+  block:
+    - name: Download Helm Installer
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: /home/ubuntu/get_helm.sh
+        mode: '0700'
+
+    - name: Run Helm Installer
+      ansible.builtin.shell:
+        cmd: ./get_helm.sh
+        chdir: /home/ubuntu
+
+# following instructions for Skaffold installation here: https://skaffold.dev/docs/install/
+- name: Download and install skaffold
+  block:
+    - name: Download Skaffold Installer
+      ansible.builtin.get_url:
+        url: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
+        dest: /home/ubuntu/skaffold
+        mode: '0700'
+
+    - name: Run Skaffold Installer
+      ansible.builtin.shell:
+        cmd: install skaffold /usr/local/bin/
+        chdir: /home/ubuntu
+
+# following instructions for kind installation here: https://kind.sigs.k8s.io/docs/user/quick-start/#installation
+- name: Download Kind Binary
+  ansible.builtin.get_url:
+    url: https://kind.sigs.k8s.io/dl/v0.15.0/kind-linux-amd64
+    dest: /usr/local/bin/kind
+    mode: u+x,g+x,o+x
+
