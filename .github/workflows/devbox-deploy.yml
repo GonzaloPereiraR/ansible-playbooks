@@ -1,0 +1,44 @@
+name: "Devbox - DEPLOY"
+on:
+    workflow_dispatch:
+      inputs:
+        instance_name:
+          description: 'Devbox Instance Name'
+          required: true
+          default: '10.1.10.62'
+        input_github_username:
+          description: 'Devbox Instance Name'
+          required: true
+          default: 'GonzaloPereiraR'
+        input_github_name:
+          description: 'Devbox Instance Name'
+          required: true
+          default: 'Gonzalo Pereira'
+        input_github_email:
+          description: 'Devbox Instance Name'
+          required: true
+          default: 'gonzalo.pereira@okera.com'
+        input_gerrit_username:
+          description: 'Devbox Instance Name'
+          required: true
+          default: 'gonzalo.pereira@okera.com'
+        ansible-repo:  
+           description: 'Which repository to fetch'
+           required: true
+           default: 'GonzaloPereiraR/ansible-playbooks'
+        owner_name:
+          description: 'Devbox Owner'
+          required: false
+env:
+  ORG_NAME: okera
+  PROJECT_NAME: devbox
+jobs:
+  Deploy_Devbox:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+        
+      - uses:  GonzaloPereiraR/action-ansible@main
+
+      - run: echo random-number ${{ steps.foo.outputs.random-number }}
+        shell: bash

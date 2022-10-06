@@ -11,12 +11,12 @@ aws:
 
 # Once we are migrated to GitHub Enterprise, username will be the same as email but for now...
 github:
-  username: github_username
+  username: "{{ input_github_username }}"
   name: "GitHub Commit Name Annotation"
-  email: email_addrell_for_github_commits
+  email: "{{ input_github_email }}"
   keyfile_name: id_rsa
 
 # Don't confuse your gerrit username with your gerrit login. Username must be set manually within Gerrit!
 gerrit:
-  username: gerrit_username
+  username: "{{ input_gerrit_username }}"
   keyfile_name: id_rsa
